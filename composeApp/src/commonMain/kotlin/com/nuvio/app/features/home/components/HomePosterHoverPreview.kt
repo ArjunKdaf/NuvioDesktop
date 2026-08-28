@@ -58,6 +58,9 @@ import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import com.nuvio.app.features.details.components.ImdbRatingSourceLabel
+import com.nuvio.app.features.details.components.ImdbYellow
+import com.nuvio.app.features.details.components.asDisplayableImdbRating
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -468,13 +471,38 @@ private fun HomePosterPreviewCard(
             ),
             verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s10),
         ) {
-            Text(
-                text = item.previewMetadataLine(),
-                style = MaterialTheme.typography.labelLarge,
-                color = tokens.colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s10),
+            ) {
+                Text(
+                    text = item.previewMetadataLine(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = tokens.colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                // Same badge the details page uses, so the rating reads the same
+                // wherever it appears.
+                item.imdbRating.asDisplayableImdbRating()?.let { rating ->
+                    val imdbTextStyle = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ImdbRatingSourceLabel(
+                            storeTextStyle = imdbTextStyle,
+                            storeTextColor = tokens.colors.textSecondary,
+                        )
+                        Spacer(modifier = Modifier.width(NuvioTokens.Space.s4))
+                        Text(
+                            text = rating,
+                            style = imdbTextStyle,
+                            color = ImdbYellow,
+                        )
+                    }
+                }
+            }
 
             item.genres
                 .take(3)
@@ -580,10 +608,6 @@ private fun MetaPreview.previewMetadataLine(): String =
             ?.let(::formatReleaseDateForDisplay)
             ?.takeIf { it.isNotBlank() }
             ?.let(::add)
-        imdbRating
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { add("IMDb $it") }
     }.joinToString(" • ")
 
 private class HomePosterPreviewPositionProvider(
