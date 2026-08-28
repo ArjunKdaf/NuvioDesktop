@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -387,6 +388,28 @@ private fun DesktopHeroMetaRow(meta: MetaDetails) {
                         letterSpacing = NuvioTokens.LetterSpacing.none,
                     ),
                     color = colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // The desktop layout owns the overview section, so the metadata IMDb
+        // rating has to be drawn here too. Without it the rating is only ever
+        // visible below the desktop width breakpoint.
+        meta.metadataImdbRatingToDisplay()?.let { imdbRating ->
+            val imdbTextStyle = MaterialTheme.typography.titleSmall.copy(
+                fontSize = NuvioTokens.Type.bodyLg,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = NuvioTokens.LetterSpacing.none,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ImdbRatingSourceLabel(
+                    storeTextStyle = imdbTextStyle,
+                    storeTextColor = colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(space.s4))
+                Text(
+                    text = imdbRating,
+                    style = imdbTextStyle,
+                    color = ImdbYellow,
                 )
             }
         }

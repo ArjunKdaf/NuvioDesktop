@@ -81,13 +81,11 @@ fun DetailMetaInfo(
         val releaseLine = formatMetaReleaseLineForDetails(meta)
         val runtimeText = formatRuntimeForDisplay(meta.runtime)
         val ageBadge = meta.ageRating?.trim()?.takeIf { it.isNotBlank() }
-        val hasMdbImdbRating = meta.externalRatings.any { it.source == PROVIDER_IMDB }
-        val validImdbRating = meta.imdbRating
-            ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+        val validImdbRating = meta.metadataImdbRatingToDisplay()
         val hasMetaRow = releaseLine != null ||
             runtimeText != null ||
             ageBadge != null ||
-            (validImdbRating != null && !hasMdbImdbRating)
+            validImdbRating != null
         if (hasMetaRow) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -112,7 +110,7 @@ fun DetailMetaInfo(
                 ageBadge?.let { badge ->
                     DetailHeroMetaBadge(text = badge)
                 }
-                if (validImdbRating != null && !hasMdbImdbRating) {
+                if (validImdbRating != null) {
                     val imdbTextStyle = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.sp,
@@ -169,6 +167,29 @@ fun DetailMetaInfo(
         }
     }
 }
+
+/**
+ * The IMDb rating that came with the metadata (Cinemeta and friends supply it on
+ * every meta response, with no account or API key involved).
+ *
+ * Returns null when MDBList is already contributing an IMDb rating, so the two
+ * never render side by side, and when the value is missing or not a positive
+ * number. Both the compact layout and the desktop hero read this, so they can
+ * never disagree about whether the rating is shown.
+ */
+internal fun MetaDetails.metadataImdbRatingToDisplay(): String? {
+    if (externalRatings.any { rating -> rating.source == PROVIDER_IMDB }) return null
+    return imdbRating.asDisplayableImdbRating()
+}
+
+/**
+ * A rating string is worth showing only when it parses to something above zero.
+ * Cinemeta sends "" for titles IMDb has no score for (unreleased, or simply not
+ * covered yet), and rendering an empty badge or "IMDb 0.0" is worse than
+ * rendering nothing.
+ */
+internal fun String?.asDisplayableImdbRating(): String? =
+    this?.trim()?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
 
 @Composable
 internal fun DetailRatingsRow(
@@ -228,7 +249,7 @@ internal fun DetailRatingsRow(
 }
 
 @Composable
-private fun ImdbRatingSourceLabel(
+internal fun ImdbRatingSourceLabel(
     storeTextStyle: TextStyle,
     storeTextColor: Color,
 ) {
@@ -302,7 +323,7 @@ private fun DetailHeroMetaBadge(
     }
 }
 
-private val ImdbYellow = Color(0xFFF5C518)
+internal val ImdbYellow = Color(0xFFF5C518)
 private val ImdbBlack = Color(0xFF000000)
 
 private data class RatingVisuals(
