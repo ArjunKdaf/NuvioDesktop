@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.cos
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -50,10 +52,21 @@ fun DisintegratingContainer(
     var field by remember { mutableStateOf<AshField?>(null) }
     val seed = remember { Random.nextLong() }
     val onDisintegratedState = rememberUpdatedState(onDisintegrated)
+    // The layer is created empty on the composition that flips `disintegrating`
+    // and is only filled during the draw phase below. Capturing it before that
+    // first record reads an empty RenderNode, which segfaults inside Skia
+    // (SkCanvas::save) and takes the whole process with it -- runCatching cannot
+    // catch that. Wait for the record, then capture.
+    var recorded by remember { mutableStateOf(false) }
 
     LaunchedEffect(disintegrating) {
         if (!disintegrating) return@LaunchedEffect
-        val bitmap = runCatching { graphicsLayer.toImageBitmap() }.getOrNull()
+        snapshotFlow { recorded }.first { it }
+        val bitmap = if (graphicsLayer.size.width <= 0 || graphicsLayer.size.height <= 0) {
+            null
+        } else {
+            runCatching { graphicsLayer.toImageBitmap() }.getOrNull()
+        }
         if (bitmap == null) {
             onDisintegratedState.value()
             return@LaunchedEffect
@@ -71,7 +84,15 @@ fun DisintegratingContainer(
         modifier = modifier.drawWithContent {
             val activeField = field
             if (activeField == null) {
-                graphicsLayer.record { this@drawWithContent.drawContent() }
+                // Record exactly once. toImageBitmap() suspends while it walks
+                // this node's display list, so re-recording on later frames frees
+                // the picture underneath the capture -- a use-after-free that
+                // lands inside SkCanvas (save/translate, wherever the walk was).
+                // The card is on its way out, so a frozen frame costs nothing.
+                if (!recorded) {
+                    graphicsLayer.record { this@drawWithContent.drawContent() }
+                    recorded = true
+                }
                 drawLayer(graphicsLayer)
             } else {
                 drawAsh(activeField, progress.value)
